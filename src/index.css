@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+/* Custom CSS Variables */
+:root {
+  /* Log Level Colors */
+  --error-bg: #FEE2E2;
+  --error-border: #EF4444;
+  --error-text: #991B1B;
+  
+  --warning-bg: #FEF3C7;
+  --warning-border: #F59E0B;
+  --warning-text: #92400E;
+  
+  --info-bg: #DBEAFE;
+  --info-border: #3B82F6;
+  --info-text: #1E40AF;
+  
+  /* UI Colors */
+  --bg-primary: #0A0F1A;
+  --bg-secondary: #111827;
+  --bg-panel: #1F2937;
+  --bg-hover: #374151;
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --accent: #818CF8;
+  --accent-hover: #6366F1;
+  --border-color: #374151;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
+}
+
+/* Custom Utility Classes */
+.log-row-error {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border-left: 3px solid var(--error-border);
+}
+
+.log-row-warning {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border-left: 3px solid var(--warning-border);
+}
+
+.log-row-info {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.02) 100%);
+  border-left: 3px solid var(--info-border);
+}
+
+.log-row-selected {
+  background: linear-gradient(90deg, rgba(129, 140, 248, 0.25) 0%, rgba(129, 140, 248, 0.1) 100%) !important;
+  border-left: 3px solid var(--accent) !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(129, 140, 248, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(129, 140, 248, 0.5); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Code/JSON Highlighting */
+.json-key {
+  color: #93C5FD;
+}
+
+.json-string {
+  color: #86EFAC;
+}
+
+.json-number {
+  color: #FCA5A5;
+}
+
+.json-boolean {
+  color: #FDE68A;
+}
+
+.stack-trace-line {
+  color: #9CA3AF;
+}
+
+.stack-trace-class {
+  color: #F472B6;
+}
+
+.stack-trace-method {
+  color: #67E8F9;
+}
+
+/* Dropzone Styling */
+.dropzone-active {
+  border-color: var(--accent);
+  background: rgba(129, 140, 248, 0.1);
+}

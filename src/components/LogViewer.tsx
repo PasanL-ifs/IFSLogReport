@@ -1,0 +1,225 @@
+import { useRef, useEffect, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { useLogStore } from '../stores/logStore';
+import { getDisplayMessage } from '../utils/logParser';
+import type { LogEntry } from '../types';
+
+function LogLevelBadge({ level }: { level: 'I' | 'W' | 'E' }) {
+  switch (level) {
+    case 'E':
+      return (
+        <span className="flex items-center justify-center w-6 h-6 rounded bg-red-500/20 text-red-400">
+          <AlertCircle className="w-3.5 h-3.5" />
+        </span>
+      );
+    case 'W':
+      return (
+        <span className="flex items-center justify-center w-6 h-6 rounded bg-amber-500/20 text-amber-400">
+          <AlertTriangle className="w-3.5 h-3.5" />
+        </span>
+      );
+    case 'I':
+      return (
+        <span className="flex items-center justify-center w-6 h-6 rounded bg-blue-500/20 text-blue-400">
+          <Info className="w-3.5 h-3.5" />
+        </span>
+      );
+  }
+}
+
+function LogRow({ entry, isSelected, onClick }: { 
+  entry: LogEntry; 
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const rowClass = isSelected
+    ? 'log-row-selected'
+    : entry.level === 'E'
+    ? 'log-row-error'
+    : entry.level === 'W'
+    ? 'log-row-warning'
+    : 'log-row-info';
+
+  // Get clean display message
+  const displayMessage = getDisplayMessage(entry);
+  const truncatedMessage = displayMessage.length > 80 
+    ? displayMessage.substring(0, 80) + '...' 
+    : displayMessage;
+
+  return (
+    <div
+      onClick={onClick}
+      className={`
+        flex items-center gap-3 px-3 py-2 cursor-pointer transition-all 
+        hover:brightness-110 border-b border-[var(--border-color)]/30
+        ${rowClass}
+        ${entry.parseStatus !== 'parsed' ? 'opacity-70' : ''}
+      `}
+    >
+      {/* Line Number */}
+      <span className="w-14 text-xs text-[var(--text-secondary)] text-right font-mono shrink-0">
+        {entry.lineNumber}
+        {entry.lineCount > 1 && (
+          <span className="text-[var(--text-secondary)]/50 text-[10px]">+{entry.lineCount - 1}</span>
+        )}
+      </span>
+
+      {/* Level Badge */}
+      <LogLevelBadge level={entry.level} />
+
+      {/* Timestamp */}
+      <span className="w-24 text-xs text-[var(--text-secondary)] font-mono shrink-0">
+        {entry.timestampRaw.split(' ').slice(1).join(' ')}
+      </span>
+
+      {/* Class Name */}
+      <span className="w-32 text-xs text-[var(--accent)] truncate shrink-0" title={entry.sourceContext}>
+        {entry.className}
+      </span>
+
+      {/* Message */}
+      <span className="flex-1 text-sm text-[var(--text-primary)] truncate font-mono">
+        {truncatedMessage}
+      </span>
+
+      {/* Exception Type Badge */}
+      {entry.exceptionType && (
+        <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-400 rounded shrink-0">
+          {entry.exceptionType.replace('System.', '').replace('Ifs.Cloud.Client.Exceptions.', '')}
+        </span>
+      )}
+      
+      {/* Nested Exception Indicator */}
+      {entry.nestedExceptions && entry.nestedExceptions.length > 1 && (
+        <span className="px-1.5 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded shrink-0" title="Has nested exceptions">
+          +{entry.nestedExceptions.length - 1}
+        </span>
+      )}
+      
+      {/* Parse Status Indicator */}
+      {entry.parseStatus !== 'parsed' && (
+        <span className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-400 rounded shrink-0" title={entry.parseError}>
+          ⚠
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function LogViewer() {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const { filteredEntries, selectedEntryId, selectEntry } = useLogStore();
+
+  const virtualizer = useVirtualizer({
+    count: filteredEntries.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 44,
+    overscan: 20,
+  });
+
+  // Scroll to selected entry
+  useEffect(() => {
+    if (selectedEntryId !== null) {
+      const index = filteredEntries.findIndex(e => e.id === selectedEntryId);
+      if (index !== -1) {
+        virtualizer.scrollToIndex(index, { align: 'center' });
+      }
+    }
+  }, [selectedEntryId, filteredEntries, virtualizer]);
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const store = useLogStore.getState();
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        {
+          const currentIdx = filteredEntries.findIndex(entry => entry.id === selectedEntryId);
+          if (currentIdx < filteredEntries.length - 1) {
+            selectEntry(filteredEntries[currentIdx + 1].id);
+          }
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        {
+          const currentIdx = filteredEntries.findIndex(entry => entry.id === selectedEntryId);
+          if (currentIdx > 0) {
+            selectEntry(filteredEntries[currentIdx - 1].id);
+          }
+        }
+        break;
+      case 'e':
+      case 'E':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          store.jumpToNextError();
+        }
+        break;
+      case 'w':
+      case 'W':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          store.jumpToNextWarning();
+        }
+        break;
+    }
+  }, [filteredEntries, selectedEntryId, selectEntry]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  if (filteredEntries.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)]">
+        <div className="text-center">
+          <p className="text-lg">No log entries to display</p>
+          <p className="text-sm mt-1">Upload a log file or adjust your filters</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      ref={parentRef} 
+      className="flex-1 overflow-auto bg-[var(--bg-secondary)]"
+      tabIndex={0}
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const entry = filteredEntries[virtualRow.index];
+          return (
+            <div
+              key={entry.id}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualRow.size}px`,
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <LogRow
+                entry={entry}
+                isSelected={entry.id === selectedEntryId}
+                onClick={() => selectEntry(entry.id)}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -59,6 +59,7 @@ The viewer parses logs in the following format:
 ```
 {LEVEL}      {TIMESTAMP}     {MESSAGE}    {"SourceContext":"namespace.class"}
 ```
+<img width="1912" height="866" alt="image" src="https://github.com/user-attachments/assets/4392f8b0-6c12-49b4-9a56-490dc9fd10d5" />
 
 ### Log Levels
 

@@ -1,11 +1,56 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Info, Zap } from 'lucide-react';
 import { useLogStore } from '../stores/logStore';
 import { getDisplayMessage } from '../utils/logParser';
-import type { LogEntry } from '../types';
+import type { LogEntry, LogLevel } from '../types';
+import { format } from 'date-fns';
 
-function LogLevelBadge({ level }: { level: 'I' | 'W' | 'E' }) {
+// Helper to format timestamp for display - handles both ISO and regular formats
+function formatDisplayTimestamp(entry: LogEntry): string {
+  // If we have a valid Date object, use it for consistent formatting
+  if (entry.timestamp && !isNaN(entry.timestamp.getTime())) {
+    return format(entry.timestamp, 'HH:mm:ss');
+  }
+  
+  // Fallback: try to extract time from raw timestamp
+  if (entry.timestampRaw) {
+    // Check if it's ISO format (contains 'T')
+    if (entry.timestampRaw.includes('T')) {
+      const match = entry.timestampRaw.match(/T(\d{2}:\d{2}:\d{2})/);
+      if (match) return match[1];
+    }
+    // Regular format: "YYYY-MM-DD HH:MM:SS AM/PM"
+    const parts = entry.timestampRaw.split(' ');
+    if (parts.length >= 3) {
+      return parts.slice(-2).join(' ');
+    }
+  }
+  
+  return 'N/A';
+}
+
+// Helper to format full date for display
+function formatDisplayDate(entry: LogEntry): string {
+  if (entry.timestamp && !isNaN(entry.timestamp.getTime())) {
+    return format(entry.timestamp, 'yyyy-MM-dd');
+  }
+  
+  if (entry.timestampRaw) {
+    // ISO format
+    if (entry.timestampRaw.includes('T')) {
+      const match = entry.timestampRaw.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (match) return match[1];
+    }
+    // Regular format
+    const parts = entry.timestampRaw.split(' ');
+    if (parts.length >= 1) return parts[0];
+  }
+  
+  return '';
+}
+
+function LogLevelBadge({ level }: { level: LogLevel }) {
   switch (level) {
     case 'E':
       return (
@@ -25,6 +70,12 @@ function LogLevelBadge({ level }: { level: 'I' | 'W' | 'E' }) {
           <Info className="w-3.5 h-3.5" />
         </span>
       );
+    case 'T':
+      return (
+        <span className="flex items-center justify-center w-6 h-6 rounded bg-purple-500/20 text-purple-400">
+          <Zap className="w-3.5 h-3.5" />
+        </span>
+      );
   }
 }
 
@@ -39,6 +90,8 @@ function LogRow({ entry, isSelected, onClick }: {
     ? 'log-row-error'
     : entry.level === 'W'
     ? 'log-row-warning'
+    : entry.level === 'T'
+    ? 'log-row-trace'
     : 'log-row-info';
 
   // Get clean display message
@@ -47,18 +100,30 @@ function LogRow({ entry, isSelected, onClick }: {
     ? displayMessage.substring(0, 80) + '...' 
     : displayMessage;
 
+  // Format timestamp and date for tooltip
+  const displayTime = formatDisplayTimestamp(entry);
+  const displayDate = formatDisplayDate(entry);
+  const fullTimestamp = displayDate ? `${displayDate} ${displayTime}` : displayTime;
+
+  // Get display name (event name or class name)
+  const displayName = entry.eventName || entry.className || 'N/A';
+  // Shorten long event names for display
+  const shortDisplayName = displayName.length > 20 
+    ? displayName.split(':').pop()?.trim() || displayName.substring(0, 20) + '...'
+    : displayName;
+
   return (
     <div
       onClick={onClick}
       className={`
-        flex items-center gap-3 px-3 py-2 cursor-pointer transition-all 
+        flex items-center gap-2 px-3 py-2 cursor-pointer transition-all 
         hover:brightness-110 border-b border-[var(--border-color)]/30
         ${rowClass}
         ${entry.parseStatus !== 'parsed' ? 'opacity-70' : ''}
       `}
     >
       {/* Line Number */}
-      <span className="w-14 text-xs text-[var(--text-secondary)] text-right font-mono shrink-0">
+      <span className="w-12 text-xs text-[var(--text-secondary)] text-right font-mono shrink-0">
         {entry.lineNumber}
         {entry.lineCount > 1 && (
           <span className="text-[var(--text-secondary)]/50 text-[10px]">+{entry.lineCount - 1}</span>
@@ -68,18 +133,24 @@ function LogRow({ entry, isSelected, onClick }: {
       {/* Level Badge */}
       <LogLevelBadge level={entry.level} />
 
-      {/* Timestamp */}
-      <span className="w-24 text-xs text-[var(--text-secondary)] font-mono shrink-0">
-        {entry.timestampRaw.split(' ').slice(1).join(' ')}
+      {/* Timestamp - fixed width with tooltip for full timestamp */}
+      <span 
+        className="w-20 text-xs text-[var(--text-secondary)] font-mono shrink-0 text-center"
+        title={fullTimestamp}
+      >
+        {displayTime}
       </span>
 
-      {/* Class Name */}
-      <span className="w-32 text-xs text-[var(--accent)] truncate shrink-0" title={entry.sourceContext}>
-        {entry.className}
+      {/* Class Name / Event Name - with proper truncation */}
+      <span 
+        className="w-36 text-xs text-[var(--accent)] truncate shrink-0" 
+        title={displayName}
+      >
+        {shortDisplayName}
       </span>
 
       {/* Message */}
-      <span className="flex-1 text-sm text-[var(--text-primary)] truncate font-mono">
+      <span className="flex-1 text-sm text-[var(--text-primary)] truncate font-mono min-w-0">
         {truncatedMessage}
       </span>
 
@@ -94,6 +165,13 @@ function LogRow({ entry, isSelected, onClick }: {
       {entry.nestedExceptions && entry.nestedExceptions.length > 1 && (
         <span className="px-1.5 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded shrink-0" title="Has nested exceptions">
           +{entry.nestedExceptions.length - 1}
+        </span>
+      )}
+
+      {/* Format Type Badge (for mixed logs) */}
+      {entry.formatType && entry.formatType !== 'original' && (
+        <span className="px-1.5 py-0.5 text-[10px] bg-[var(--bg-hover)] text-[var(--text-secondary)] rounded shrink-0" title={`Format: ${entry.formatType}`}>
+          {entry.formatType === 'jsonl' ? 'JSON' : entry.formatType === 'tab-separated' ? 'TAB' : ''}
         </span>
       )}
       
@@ -132,6 +210,11 @@ export function LogViewer() {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const store = useLogStore.getState();
     
+    // Don't capture if user is typing in an input
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+    
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -163,6 +246,13 @@ export function LogViewer() {
         if (!e.ctrlKey && !e.metaKey) {
           e.preventDefault();
           store.jumpToNextWarning();
+        }
+        break;
+      case 't':
+      case 'T':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          store.jumpToNextTrace();
         }
         break;
     }

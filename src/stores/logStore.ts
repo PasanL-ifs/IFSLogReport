@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { LogEntry, LogStats, LogFilters, FileInfo } from '../types';
+import type { LogEntry, LogStats, LogFilters, FileInfo, LogLevel } from '../types';
 import { parseLogFile, calculateStats } from '../utils/logParser';
 
 interface LogStore {
@@ -22,22 +22,26 @@ interface LogStore {
   clearFile: () => void;
   selectEntry: (id: number | null) => void;
   setFilters: (filters: Partial<LogFilters>) => void;
-  toggleLevel: (level: 'I' | 'W' | 'E') => void;
+  toggleLevel: (level: LogLevel) => void;
   setSearchQuery: (query: string) => void;
   toggleSourceContext: (context: string) => void;
   toggleExceptionType: (type: string) => void;
+  toggleEventName: (name: string) => void;
   toggleShowUnparsed: () => void;
   jumpToNextError: () => void;
   jumpToNextWarning: () => void;
   jumpToPrevError: () => void;
   jumpToPrevWarning: () => void;
+  jumpToNextTrace: () => void;
+  jumpToPrevTrace: () => void;
 }
 
 const defaultFilters: LogFilters = {
-  levels: { I: true, W: true, E: true },
+  levels: { I: true, W: true, E: true, T: true },
   searchQuery: '',
   sourceContexts: [],
   exceptionTypes: [],
+  eventNames: [],
   timeRange: { start: null, end: null },
   showUnparsed: true,
 };
@@ -61,9 +65,10 @@ function filterEntries(entries: LogEntry[], filters: LogFilters): LogEntry[] {
         line.toLowerCase().includes(query)
       );
       const matchesRaw = entry.rawContent.toLowerCase().includes(query);
+      const matchesEventName = entry.eventName?.toLowerCase().includes(query);
       
       if (!matchesMessage && !matchesSource && !matchesException && 
-          !matchesExceptionType && !matchesStackTrace && !matchesRaw) {
+          !matchesExceptionType && !matchesStackTrace && !matchesRaw && !matchesEventName) {
         return false;
       }
     }
@@ -85,6 +90,13 @@ function filterEntries(entries: LogEntry[], filters: LogFilters): LogEntry[] {
         if (!hasMatchingException) return false;
       } else {
         return false; // Non-errors don't have exception types
+      }
+    }
+    
+    // Filter by event name (for JSONL format)
+    if (filters.eventNames.length > 0) {
+      if (!entry.eventName || !filters.eventNames.includes(entry.eventName)) {
+        return false;
       }
     }
     
@@ -151,7 +163,7 @@ export const useLogStore = create<LogStore>((set, get) => ({
     });
   },
   
-  toggleLevel: (level: 'I' | 'W' | 'E') => {
+  toggleLevel: (level: LogLevel) => {
     const { filters } = get();
     get().setFilters({
       levels: {
@@ -181,6 +193,15 @@ export const useLogStore = create<LogStore>((set, get) => ({
       : [...filters.exceptionTypes, type];
     
     get().setFilters({ exceptionTypes: types });
+  },
+  
+  toggleEventName: (name: string) => {
+    const { filters } = get();
+    const names = filters.eventNames.includes(name)
+      ? filters.eventNames.filter(n => n !== name)
+      : [...filters.eventNames, name];
+    
+    get().setFilters({ eventNames: names });
   },
   
   toggleShowUnparsed: () => {
@@ -226,5 +247,25 @@ export const useLogStore = create<LogStore>((set, get) => ({
     const currentIndex = warnings.findIndex(e => e.id === selectedEntryId);
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : warnings.length - 1;
     set({ selectedEntryId: warnings[prevIndex].id });
+  },
+  
+  jumpToNextTrace: () => {
+    const { filteredEntries, selectedEntryId } = get();
+    const traces = filteredEntries.filter(e => e.level === 'T');
+    if (traces.length === 0) return;
+    
+    const currentIndex = traces.findIndex(e => e.id === selectedEntryId);
+    const nextIndex = currentIndex < traces.length - 1 ? currentIndex + 1 : 0;
+    set({ selectedEntryId: traces[nextIndex].id });
+  },
+  
+  jumpToPrevTrace: () => {
+    const { filteredEntries, selectedEntryId } = get();
+    const traces = filteredEntries.filter(e => e.level === 'T');
+    if (traces.length === 0) return;
+    
+    const currentIndex = traces.findIndex(e => e.id === selectedEntryId);
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : traces.length - 1;
+    set({ selectedEntryId: traces[prevIndex].id });
   },
 }));

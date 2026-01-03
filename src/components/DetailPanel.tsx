@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Copy, AlertCircle, Clock, Code, Layers, FileText, ChevronDown, FileCode } from 'lucide-react';
+import { Copy, AlertCircle, Clock, Code, Layers, FileText, ChevronDown, FileCode, Zap, FileJson } from 'lucide-react';
 import { useLogStore } from '../stores/logStore';
 import { format } from 'date-fns';
-import type { NestedExceptionInfo } from '../types';
+import { getFormatName } from '../utils/logParser';
+import type { NestedExceptionInfo, LogLevel } from '../types';
 
 function StackTraceView({ stackTrace }: { stackTrace: string[] }) {
   return (
@@ -160,6 +161,32 @@ function JsonView({ json }: { json: string }) {
   }
 }
 
+function PropertiesView({ properties }: { properties: Record<string, unknown> }) {
+  const entries = Object.entries(properties);
+  
+  if (entries.length === 0) return null;
+  
+  return (
+    <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-color)]">
+        <FileJson className="w-4 h-4 text-[var(--accent)]" />
+        <span className="text-sm font-medium text-[var(--text-primary)]">Properties</span>
+        <span className="text-xs text-[var(--text-secondary)]">({entries.length})</span>
+      </div>
+      <div className="p-3 space-y-2 max-h-48 overflow-auto">
+        {entries.map(([key, value]) => (
+          <div key={key} className="flex flex-col gap-1">
+            <span className="text-xs text-[var(--accent)] font-medium">{key}</span>
+            <div className="text-sm text-[var(--text-primary)] font-mono bg-[var(--bg-secondary)] p-2 rounded break-all">
+              {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DetailPanel() {
   const { selectedEntryId, entries } = useLogStore();
   
@@ -179,22 +206,23 @@ export function DetailPanel() {
             Use <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-xs">↑</kbd> <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-xs">↓</kbd> to navigate
           </p>
           <p className="text-xs mt-1 opacity-70">
-            Press <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-xs">E</kbd> for next error, <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-xs">W</kbd> for next warning
+            Press <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-xs">E</kbd> for error, <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-xs">W</kbd> for warning, <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded text-xs">T</kbd> for trace
           </p>
         </div>
       </div>
     );
   }
 
-  const levelColors = {
-    E: { bg: 'bg-red-500/20', border: 'border-red-500/50', text: 'text-red-400', label: 'Error' },
-    W: { bg: 'bg-amber-500/20', border: 'border-amber-500/50', text: 'text-amber-400', label: 'Warning' },
-    I: { bg: 'bg-blue-500/20', border: 'border-blue-500/50', text: 'text-blue-400', label: 'Info' },
+  const levelColors: Record<LogLevel, { bg: string; border: string; text: string; label: string; icon: React.ReactNode }> = {
+    E: { bg: 'bg-red-500/20', border: 'border-red-500/50', text: 'text-red-400', label: 'Error', icon: <AlertCircle className="w-4 h-4" /> },
+    W: { bg: 'bg-amber-500/20', border: 'border-amber-500/50', text: 'text-amber-400', label: 'Warning', icon: <AlertCircle className="w-4 h-4" /> },
+    I: { bg: 'bg-blue-500/20', border: 'border-blue-500/50', text: 'text-blue-400', label: 'Info', icon: <AlertCircle className="w-4 h-4" /> },
+    T: { bg: 'bg-purple-500/20', border: 'border-purple-500/50', text: 'text-purple-400', label: 'Trace', icon: <Zap className="w-4 h-4" /> },
   };
 
   const levelStyle = levelColors[selectedEntry.level];
 
-  // Extract JSON from the raw content
+  // Extract JSON from the raw content (for original format)
   const jsonMatch = selectedEntry.rawContent.match(/(\{"SourceContext":[^}]+\})/);
   const metadata = jsonMatch ? jsonMatch[1] : null;
 
@@ -204,13 +232,19 @@ export function DetailPanel() {
       <div className={`p-3 rounded-xl border ${levelStyle.bg} ${levelStyle.border}`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className={`px-2 py-1 rounded text-xs font-bold ${levelStyle.bg} ${levelStyle.text}`}>
+            <span className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${levelStyle.bg} ${levelStyle.text}`}>
+              {levelStyle.icon}
               {levelStyle.label}
             </span>
             <span className="text-xs text-[var(--text-secondary)]">
               Line {selectedEntry.lineNumber}
               {selectedEntry.lineCount > 1 && ` (+${selectedEntry.lineCount - 1} lines)`}
             </span>
+            {selectedEntry.formatType && (
+              <span className="px-1.5 py-0.5 text-[10px] bg-[var(--bg-hover)] text-[var(--text-secondary)] rounded">
+                {getFormatName(selectedEntry.formatType)}
+              </span>
+            )}
             {selectedEntry.parseStatus !== 'parsed' && (
               <span className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-400 rounded" title={selectedEntry.parseError}>
                 {selectedEntry.parseStatus}
@@ -226,19 +260,28 @@ export function DetailPanel() {
           </button>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-4 text-xs flex-wrap">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
             <span className="text-[var(--text-primary)] font-mono">
-              {format(selectedEntry.timestamp, 'MMM d, yyyy HH:mm:ss a')}
+              {selectedEntry.timestamp && !isNaN(selectedEntry.timestamp.getTime()) 
+                ? format(selectedEntry.timestamp, 'MMM d, yyyy HH:mm:ss a')
+                : selectedEntry.timestampRaw || 'N/A'
+              }
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
             <span className="text-[var(--accent)]" title={selectedEntry.sourceContext}>
-              {selectedEntry.className}
+              {selectedEntry.className || selectedEntry.eventName || 'N/A'}
             </span>
           </div>
+          {selectedEntry.eventName && (
+            <div className="flex items-center gap-1.5">
+              <FileJson className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+              <span className="text-[var(--text-primary)]">{selectedEntry.eventName}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -291,6 +334,11 @@ export function DetailPanel() {
         </div>
       )}
 
+      {/* JSONL Properties (for JSONL format) */}
+      {selectedEntry.properties && Object.keys(selectedEntry.properties).length > 0 && (
+        <PropertiesView properties={selectedEntry.properties as Record<string, unknown>} />
+      )}
+
       {/* Message (for non-errors or errors without parsed exception) */}
       {(selectedEntry.level !== 'E' || !selectedEntry.exceptionType) && (
         <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-color)] overflow-hidden">
@@ -312,7 +360,7 @@ export function DetailPanel() {
         </div>
       )}
 
-      {/* Metadata JSON */}
+      {/* Metadata JSON (for original format) */}
       {metadata && (
         <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-color)] overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">

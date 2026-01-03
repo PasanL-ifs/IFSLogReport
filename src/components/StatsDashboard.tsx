@@ -1,6 +1,7 @@
-import { AlertCircle, AlertTriangle, Info, FileText, Clock, AlertOctagon } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Info, FileText, Clock, AlertOctagon, Zap, FileJson } from 'lucide-react';
 import { useLogStore } from '../stores/logStore';
 import { format } from 'date-fns';
+import { getFormatName } from '../utils/logParser';
 
 export function StatsDashboard() {
   const { stats, fileInfo } = useLogStore();
@@ -23,7 +24,7 @@ export function StatsDashboard() {
   return (
     <div className="space-y-3 animate-fade-in">
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         {/* Total */}
         <div className="p-3 bg-[var(--bg-panel)] rounded-lg border border-[var(--border-color)]">
           <div className="flex items-center gap-2 mb-1">
@@ -67,10 +68,30 @@ export function StatsDashboard() {
             {stats.info.toLocaleString()}
           </p>
         </div>
+
+        {/* Trace */}
+        <div className="p-3 bg-gradient-to-br from-purple-500/10 to-transparent rounded-lg border border-purple-500/30">
+          <div className="flex items-center gap-2 mb-1">
+            <Zap className="w-4 h-4 text-purple-400" />
+            <span className="text-xs text-purple-300 uppercase tracking-wide">Trace</span>
+          </div>
+          <p className="text-2xl font-bold text-purple-400">
+            {stats.trace}
+          </p>
+        </div>
       </div>
 
       {/* Secondary Stats Row */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
+        {/* Detected Format */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-panel)] rounded-lg border border-[var(--border-color)]">
+          <FileJson className="w-4 h-4 text-[var(--accent)]" />
+          <span className="text-xs text-[var(--text-secondary)]">Format:</span>
+          <span className="text-xs text-[var(--text-primary)] font-medium">
+            {getFormatName(stats.detectedFormat)}
+          </span>
+        </div>
+
         {/* Time Range */}
         <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-[var(--bg-panel)] rounded-lg border border-[var(--border-color)]">
           <Clock className="w-4 h-4 text-[var(--accent)]" />
@@ -115,6 +136,34 @@ export function StatsDashboard() {
             {stats.uniqueExceptionTypes.length > 5 && (
               <span className="px-2 py-0.5 text-xs text-[var(--text-secondary)]">
                 +{stats.uniqueExceptionTypes.length - 5} more
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Event Names Summary (for JSONL format) */}
+      {stats.uniqueEventNames.length > 0 && (
+        <div className="px-3 py-2 bg-[var(--bg-panel)] rounded-lg border border-[var(--border-color)]">
+          <div className="flex items-center gap-2 mb-2">
+            <FileJson className="w-4 h-4 text-[var(--accent)]" />
+            <span className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">
+              Event Names ({stats.uniqueEventNames.length})
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {stats.uniqueEventNames.slice(0, 8).map(name => (
+              <span 
+                key={name} 
+                className="px-2 py-0.5 text-xs bg-[var(--accent)]/10 text-[var(--accent)] rounded border border-[var(--accent)]/20"
+                title={name}
+              >
+                {name.replace('System: ', '').replace('AppFeature: ', '')}
+              </span>
+            ))}
+            {stats.uniqueEventNames.length > 8 && (
+              <span className="px-2 py-0.5 text-xs text-[var(--text-secondary)]">
+                +{stats.uniqueEventNames.length - 8} more
               </span>
             )}
           </div>

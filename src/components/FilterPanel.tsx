@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, AlertCircle, AlertTriangle, Info, ChevronDown, ChevronUp, Filter, X, Eye, EyeOff } from 'lucide-react';
+import { Search, AlertCircle, AlertTriangle, Info, ChevronDown, ChevronUp, Filter, X, Eye, EyeOff, Zap, FileJson } from 'lucide-react';
 import { useLogStore } from '../stores/logStore';
 
 export function FilterPanel() {
@@ -10,13 +10,16 @@ export function FilterPanel() {
     setSearchQuery,
     toggleSourceContext,
     toggleExceptionType,
+    toggleEventName,
     toggleShowUnparsed,
     filteredEntries,
   } = useLogStore();
   
   const [showSourceContexts, setShowSourceContexts] = useState(false);
   const [showExceptionTypes, setShowExceptionTypes] = useState(false);
+  const [showEventNames, setShowEventNames] = useState(false);
   const [contextSearch, setContextSearch] = useState('');
+  const [eventSearch, setEventSearch] = useState('');
 
   if (!stats) return null;
 
@@ -24,13 +27,19 @@ export function FilterPanel() {
     ctx.toLowerCase().includes(contextSearch.toLowerCase())
   );
 
+  const filteredEvents = stats.uniqueEventNames.filter(name =>
+    name.toLowerCase().includes(eventSearch.toLowerCase())
+  );
+
   const hasActiveFilters = 
     !filters.levels.I || 
     !filters.levels.W || 
     !filters.levels.E || 
+    !filters.levels.T ||
     filters.searchQuery || 
     filters.sourceContexts.length > 0 ||
     filters.exceptionTypes.length > 0 ||
+    filters.eventNames.length > 0 ||
     !filters.showUnparsed;
 
   return (
@@ -56,11 +65,11 @@ export function FilterPanel() {
       </div>
 
       {/* Level Toggles */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <button
           onClick={() => toggleLevel('E')}
           className={`
-            flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-all
+            flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border transition-all
             ${filters.levels.E 
               ? 'bg-red-500/20 border-red-500/50 text-red-400' 
               : 'bg-[var(--bg-panel)] border-[var(--border-color)] text-[var(--text-secondary)] opacity-50'
@@ -75,7 +84,7 @@ export function FilterPanel() {
         <button
           onClick={() => toggleLevel('W')}
           className={`
-            flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-all
+            flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border transition-all
             ${filters.levels.W 
               ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' 
               : 'bg-[var(--bg-panel)] border-[var(--border-color)] text-[var(--text-secondary)] opacity-50'
@@ -90,7 +99,7 @@ export function FilterPanel() {
         <button
           onClick={() => toggleLevel('I')}
           className={`
-            flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-all
+            flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border transition-all
             ${filters.levels.I 
               ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' 
               : 'bg-[var(--bg-panel)] border-[var(--border-color)] text-[var(--text-secondary)] opacity-50'
@@ -100,6 +109,21 @@ export function FilterPanel() {
           <Info className="w-4 h-4" />
           <span className="text-sm font-medium">I</span>
           <span className="text-xs opacity-70">({stats.info})</span>
+        </button>
+
+        <button
+          onClick={() => toggleLevel('T')}
+          className={`
+            flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border transition-all
+            ${filters.levels.T 
+              ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' 
+              : 'bg-[var(--bg-panel)] border-[var(--border-color)] text-[var(--text-secondary)] opacity-50'
+            }
+          `}
+        >
+          <Zap className="w-4 h-4" />
+          <span className="text-sm font-medium">T</span>
+          <span className="text-xs opacity-70">({stats.trace})</span>
         </button>
       </div>
 
@@ -236,6 +260,68 @@ export function FilterPanel() {
                   </label>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Event Names Filter (for JSONL format) */}
+      {stats.uniqueEventNames.length > 0 && (
+        <div className="bg-[var(--bg-panel)] rounded-lg border border-[var(--border-color)] overflow-hidden">
+          <button
+            onClick={() => setShowEventNames(!showEventNames)}
+            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            <span className="text-sm font-medium text-[var(--text-primary)]">
+              <FileJson className="w-4 h-4 inline mr-2 text-[var(--accent)]" />
+              Event Names
+              {filters.eventNames.length > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 text-xs bg-[var(--accent)]/20 text-[var(--accent)] rounded">
+                  {filters.eventNames.length}
+                </span>
+              )}
+            </span>
+            {showEventNames ? (
+              <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+            )}
+          </button>
+          
+          {showEventNames && (
+            <div className="border-t border-[var(--border-color)]">
+              <div className="p-2">
+                <input
+                  type="text"
+                  placeholder="Filter events..."
+                  value={eventSearch}
+                  onChange={(e) => setEventSearch(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto px-2 pb-2">
+                {filteredEvents.map(name => {
+                  const shortName = name.replace('System: ', '').replace('AppFeature: ', '');
+                  const isSelected = filters.eventNames.includes(name);
+                  
+                  return (
+                    <label
+                      key={name}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-hover)] cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleEventName(name)}
+                        className="w-3.5 h-3.5 rounded border-[var(--border-color)] bg-[var(--bg-secondary)] checked:bg-[var(--accent)] focus:ring-[var(--accent)] focus:ring-offset-0"
+                      />
+                      <span className="text-xs text-[var(--text-primary)] truncate" title={name}>
+                        {shortName}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

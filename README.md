@@ -11,15 +11,36 @@ A modern, web-based log file analyzer with powerful filtering, search, and visua
 
 ---
 
+## 🎉 What's New in v2.0
+
+**Multi-Format Log Support** is here! The viewer now supports **4 different log formats** with automatic detection:
+- ✅ Original space-delimited format (I, W, E)
+- ✅ Tab-separated format with **new Trace level (T)**
+- ✅ JSON Lines (NDJSON) with structured properties
+- ✅ Mixed format logs in the same file
+
+**New Features:**
+- 🔵 **Trace Level (T)** - Track application flow with cyan-themed trace entries
+- 📊 **Event Name Tracking** - Filter and view logs by event names
+- 🗂️ **JSON Properties Viewer** - Beautiful display of structured log properties
+- ⏱️ **Enhanced Timestamps** - Support for ISO 8601 and standard formats
+- 🔗 **Nested Exception Parsing** - Full exception chain visualization
+
+📖 **[Read the full Release Notes →](RELEASE_NOTES.md)**
+
+---
+
 ## ✨ Features
 
-- 🎨 **Color-coded log levels** - Instantly identify Errors (red), Warnings (amber), and Info (blue)
-- 🔍 **Powerful search** - Search across messages, stack traces, and metadata
+- 🔄 **Multi-format support** - Automatic detection of 4 different log formats (space-delimited, tab-separated, JSONL, mixed)
+- 🎨 **Color-coded log levels** - Instantly identify Errors (red), Warnings (amber), Info (blue), and Trace (cyan)
+- 🔍 **Powerful search** - Search across messages, stack traces, metadata, and event names
 - 📁 **Drag & drop upload** - Simply drop your log file to start analyzing
 - ⚡ **Virtual scrolling** - Handle thousands of log entries with smooth performance
-- 🎯 **Smart filtering** - Filter by log level, source context, exception type, and time range
-- 📋 **Stack trace parsing** - Beautifully formatted exception details with syntax highlighting
-- ⌨️ **Keyboard navigation** - Quick shortcuts to jump between errors and warnings
+- 🎯 **Smart filtering** - Filter by log level, source context, exception type, event names, and time range
+- 📋 **Stack trace parsing** - Beautifully formatted exception details with nested exception support
+- 🗂️ **JSON Properties Viewer** - Structured display of JSONL log properties
+- ⌨️ **Keyboard navigation** - Quick shortcuts to jump between errors, warnings, and traces
 - 🌙 **Dark theme** - Easy on the eyes during long debugging sessions
 - 📱 **Responsive** - Works on desktop and tablet devices
 
@@ -52,29 +73,63 @@ npm run build
 
 ---
 
-## 📖 Supported Log Format
+## 📖 Supported Log Formats
 
-The viewer parses logs in the following format:
+The viewer **automatically detects and parses** multiple log formats:
+
+<img width="1912" height="866" alt="image" src="https://github.com/user-attachments/assets/4392f8b0-6c12-49b4-9a56-490dc9fd10d5" />
+
+### Format 1: Original (Space-Delimited)
 
 ```
 {LEVEL}      {TIMESTAMP}     {MESSAGE}    {"SourceContext":"namespace.class"}
 ```
-<img width="1912" height="866" alt="image" src="https://github.com/user-attachments/assets/4392f8b0-6c12-49b4-9a56-490dc9fd10d5" />
+
+**Example:**
+```
+I      2025-12-09 10:37:27 AM     SyncStarted    {"SourceContext":"App.Services.SyncService"}
+E      2025-12-09 10:37:45 AM     <System.NullReferenceException>...    {"SourceContext":"App.Core.Handler"}
+```
+
+### Format 2: Tab-Separated
+
+```
+{LEVEL}\t{TIMESTAMP}\t{MESSAGE}
+```
+
+**Example:**
+```
+I	2025-10-24 13:07:01 AM	Identify (User=IFSAPP, AppName=ServiceEngApp)
+T	2025-10-24 13:07:32 AM	System: InitializationStarted
+```
+
+### Format 3: JSON Lines (NDJSON)
+
+One JSON object per line with `LoggedAt`, `Name`, and optional `Properties`:
+
+**Example:**
+```json
+{"LoggedAt":"2025-10-24T13:06:40.5882074+05:30","Name":"System: ApplicationStarted","Properties":{"Version":"25.99.1622.0","OS":"Windows"}}
+{"LoggedAt":"2025-10-24T13:21:37.7451511+05:30","Name":"Exception","Properties":{"Exception":"<CloudException>...","Kind":"Unexpected"}}
+```
 
 ### Log Levels
 
-| Level | Description | Example |
-|-------|-------------|---------|
-| `I` | Information | `I      2025-12-09 10:37:27 AM     SyncStarted    {"SourceContext":"App.Services.SyncService"}` |
-| `W` | Warning | `W      2025-12-09 10:37:32 AM     Connection timeout    {"SourceContext":"App.Network.Client"}` |
-| `E` | Error | `E      2025-12-09 10:37:45 AM     <System.NullReferenceException>...    {"SourceContext":"App.Core.Handler"}` |
+| Level | Icon | Color | Description |
+|-------|------|-------|-------------|
+| `I` | ℹ️ | Blue | Information - General application events |
+| `W` | ⚠️ | Amber | Warning - Potential issues that don't stop execution |
+| `E` | ❌ | Red | Error - Exceptions and failures |
+| `T` | ⚡ | Cyan | Trace - Application flow tracking (new in v2.0) |
 
-### Error Format with Stack Trace
+### Exception Format with Nested Stack Traces
+
+The parser handles complex nested exceptions:
 
 ```
 E      2025-12-09 01:00:37 PM     <System.ArgumentNullException><Message>Parameter cannot be null</Message><StackTrace>   at MyApp.Services.DataHandler.Process()
    at MyApp.Core.Engine.Execute()
-</StackTrace></System.ArgumentNullException>    {"SourceContext":"MyApp.Services.DataHandler"}
+</StackTrace><System.Exception><Message>Inner exception message</Message></System.Exception></System.ArgumentNullException>    {"SourceContext":"MyApp.Services.DataHandler"}
 ```
 
 ---
@@ -85,9 +140,8 @@ E      2025-12-09 01:00:37 PM     <System.ArgumentNullException><Message>Paramet
 |-----|--------|
 | `↑` / `↓` | Navigate between log entries |
 | `E` | Jump to next error |
-| `Shift + E` | Jump to previous error |
 | `W` | Jump to next warning |
-| `Shift + W` | Jump to previous warning |
+| `T` | Jump to next trace *(new in v2.0)* |
 | `Escape` | Clear selection |
 
 ---
@@ -110,11 +164,20 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
+## 📚 Documentation
+
+- **[Release Notes](RELEASE_NOTES.md)** - Detailed changelog and version history
+- **[GitHub Repository](https://github.com/PasanL-ifs/IFSLogReport)** - Source code and issues
+- **[Live Demo](https://pasanl-ifs.github.io/IFSLogReport/)** - Try it online
+
+---
+
 ## 🙏 Acknowledgments
 
 - Built with [React](https://react.dev/) and [Vite](https://vitejs.dev/)
 - Icons by [Lucide](https://lucide.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
+- Special thanks to IFS QA Team for testing and feedback
 
 ---
 

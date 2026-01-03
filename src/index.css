@@ -15,6 +15,10 @@
   --info-border: #3B82F6;
   --info-text: #1E40AF;
   
+  --trace-bg: #E0E7FF;
+  --trace-border: #8B5CF6;
+  --trace-text: #5B21B6;
+  
   /* UI Colors */
   --bg-primary: #0A0F1A;
   --bg-secondary: #111827;
@@ -79,6 +83,11 @@ body {
 .log-row-info {
   background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.02) 100%);
   border-left: 3px solid var(--info-border);
+}
+
+.log-row-trace {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.03) 100%);
+  border-left: 3px solid var(--trace-border);
 }
 
 .log-row-selected {

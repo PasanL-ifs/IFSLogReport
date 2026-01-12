@@ -88,7 +88,7 @@ function App() {
             
             {/* Detail Panel */}
             {fileInfo && (
-              <div className="flex flex-col min-h-[300px] shrink-0">
+              <div className="flex-1 flex flex-col min-h-[300px]">
                 <h2 className="text-sm font-medium text-[var(--text-primary)] mb-3 flex items-center gap-2 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"></span>
                   Log Details

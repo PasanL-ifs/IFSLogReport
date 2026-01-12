@@ -68,7 +68,7 @@ function App() {
 
         {/* Right Panel - Controls & Details */}
         <div className="flex flex-col overflow-hidden bg-[var(--bg-primary)]" style={{ flex: '0 0 40%' }}>
-          <div className="flex-1 flex flex-col overflow-hidden p-4 gap-4">
+          <div className="flex-1 flex flex-col overflow-y-auto thin-scrollbar p-4 gap-4">
             {/* File Upload (when file loaded) */}
             {fileInfo && <FileUpload />}
             
@@ -77,7 +77,7 @@ function App() {
             
             {/* Filter Panel */}
             {fileInfo && (
-              <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-color)] p-4">
+              <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-color)] p-4 shrink-0">
                 <h2 className="text-sm font-medium text-[var(--text-primary)] mb-3 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"></span>
                   Filters
@@ -88,7 +88,7 @@ function App() {
             
             {/* Detail Panel */}
             {fileInfo && (
-              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 flex flex-col min-h-[300px]">
                 <h2 className="text-sm font-medium text-[var(--text-primary)] mb-3 flex items-center gap-2 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"></span>
                   Log Details
